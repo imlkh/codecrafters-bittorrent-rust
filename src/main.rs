@@ -16,14 +16,14 @@ impl Bencode {
 
         match (first, last) {
             (Some('i'), Some('e')) => {
-                return Bencode::decode_bencoded_integer(encoded_value);
+                return Bencode::decode_integer(encoded_value);
             }
             (Some('l'), Some('e')) => {
                 return Bencode::decode_list(encoded_value).0;
             }
             (Some(c), _) => {
                 if c.is_digit(10) {
-                    return Bencode::decode_bencoded_string(encoded_value);
+                    return Bencode::decode_string(encoded_value);
                 } else {
                     panic!("Unhandled encoded value: {}", encoded_value)
                 }
@@ -85,7 +85,7 @@ impl Bencode {
     }
 
     #[allow(dead_code)]
-    fn decode_bencoded_string(encoded_value: &str) -> serde_json::Value {
+    fn decode_string(encoded_value: &str) -> serde_json::Value {
         let colon_index = encoded_value.find(':').unwrap();
         let number_string = &encoded_value[..colon_index];
         let number = number_string.parse::<i64>().unwrap();
@@ -94,7 +94,7 @@ impl Bencode {
     }
 
     #[allow(dead_code)]
-    fn decode_bencoded_integer(encoded_value: &str) -> serde_json::Value {
+    fn decode_integer(encoded_value: &str) -> serde_json::Value {
         let number_string = &encoded_value[1..encoded_value.len() - 1];
         let number = number_string.parse::<i64>().unwrap();
         return serde_json::Value::Number(number.into());
@@ -106,8 +106,8 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let command = &args[1];
 
-    // let (test, _) = decode_bencoded_list("l5:hello3:wow7:abcdef7i77ee");
-    // let (test, _) = decode_bencoded_list("l5:hello3:wow7:abcdef7i77el5:helloi52eee");
+    // let (test, _) = decode_list("l5:hello3:wow7:abcdef7i77ee");
+    // let (test, _) = decode_list("l5:hello3:wow7:abcdef7i77el5:helloi52eee");
     // println!("{}", test.to_string());
 
     if command == "decode" {
