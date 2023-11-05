@@ -1,4 +1,4 @@
-use serde_json;
+use serde_json::{Map, Value};
 use std::env;
 
 // Available if you need it!
@@ -8,96 +8,109 @@ struct Bencode {}
 
 impl Bencode {
     #[allow(dead_code)]
-    fn decode(encoded_value: &str) -> serde_json::Value {
-        // If encoded_value starts with a digit, it's a number
-        let mut chars = encoded_value.chars();
-        let first = chars.next();
-        let last = chars.next_back();
+    fn decode(encoded_value: &str) -> Value {
+        let (value, encoded_remain) = Bencode::decode_(encoded_value);
+        if !encoded_remain.is_empty() {
+            println!("There is remaining encoded value : {}", encoded_remain);
+        }
+        value
+    }
 
-        match (first, last) {
-            (Some('i'), Some('e')) => {
-                return Bencode::decode_integer(encoded_value);
-            }
-            (Some('l'), Some('e')) => {
-                return Bencode::decode_list(encoded_value).0;
-            }
-            (Some(c), _) => {
+    fn decode_(encoded_value: &str) -> (Value, &str) {
+        let first = encoded_value.chars().next();
+
+        match first {
+            Some('i') => return Bencode::decode_integer(encoded_value),
+            Some('l') => return Bencode::decode_list(encoded_value),
+            Some('d') => return Bencode::decode_dictionary(encoded_value),
+            Some(c) => {
                 if c.is_digit(10) {
                     return Bencode::decode_string(encoded_value);
                 } else {
-                    panic!("Unhandled encoded value: {}", encoded_value)
+                    panic!("Unhandled encoded integer value: {}", encoded_value)
                 }
             }
-            (None, _) => panic!("There is no argument"),
-            // _ => panic!("Unhandled encoded value: {}", encoded_value),
+            None => panic!("There is no argument"),
         }
     }
 
     #[allow(dead_code)]
-    fn decode_list(encoded_value: &str) -> (serde_json::Value, usize) {
-        let mut vec: Vec<serde_json::Value> = Vec::new();
-        let mut chars = encoded_value.chars();
-        chars.next();
-        let mut en_value = &encoded_value[1..encoded_value.len() - 1];
+    fn decode_dictionary(encoded_value: &str) -> (Value, &str) {
+        let mut map = Map::new();
+        let mut en_value = &encoded_value[1..];
 
-        while let Some(c) = chars.next() {
+        while Some('e') != en_value.chars().next()  {
+            let (key, en_value_) = Bencode::decode_(en_value);
+            let (value, en_value_) = Bencode::decode_(en_value_);
+            en_value = en_value_;
+
+            if let serde_json::Value::String(s) = key {
+                map.insert(s, value);
+            } else {
+                panic!("key has to be a string");
+            }
+        }
+        (serde_json::Value::Object(map), &en_value[1..])
+    }
+
+    fn decode_list(encoded_value: &str) -> (Value, &str) {
+        let mut vec: Vec<Value> = Vec::new();
+        let mut en_value = &encoded_value[1..];
+
+        while let Some(c) = en_value.chars().next() {
             // println!("c = {}, en_value = {}", c, en_value);
             if c.is_digit(10) {
                 // println!("String");
-                let colon_index = en_value.find(':').unwrap();
-                let number_string = &en_value[..colon_index];
-                let number = number_string.parse::<i64>().unwrap();
-                let string = &en_value[colon_index + 1..colon_index + 1 + number as usize];
-                vec.push(serde_json::Value::String(string.to_string()));
-
-                let msg_len = colon_index + 1 + number as usize;
-                en_value = &en_value[msg_len..];
-                chars.nth(msg_len - 2);
+                let (value, encoded_next) = Bencode::decode_string(en_value);
+                vec.push(value);
+                en_value = encoded_next;
             } else if c == 'i' {
                 // println!("Integer");
-                let end_index = en_value.find('e').unwrap();
-                let number_string = &en_value[1..end_index];
-                let number = number_string.parse::<i64>().unwrap();
-                vec.push(serde_json::Value::Number(number.into()));
-                // vec.push(serde_json::json!(number));
-
-                let msg_len = end_index + 1 as usize;
-                en_value = &en_value[msg_len..];
-                chars.nth(msg_len - 2);
+                let (value, encoded_next) = Bencode::decode_integer(en_value);
+                vec.push(value);
+                en_value = encoded_next;
             } else if c == 'l' {
                 // println!("List");
-                let (value, length) = Bencode::decode_list(en_value);
+                let (value, encoded_next) = Bencode::decode_list(en_value);
                 vec.push(value);
-
-                let msg_len = length as usize;
-                en_value = &en_value[msg_len..];
-                chars.nth(msg_len - 2);
+                en_value = encoded_next;
+            } else if c == 'd' {
+                // println!("Dictionary");
+                let (value, encoded_next) = Bencode::decode_dictionary(en_value);
+                vec.push(value);
+                en_value = encoded_next;
             } else if c == 'e' {
-                let length = encoded_value.len() - chars.count() as usize;
-                // println!("list ended : {}", &encoded_value[.. length]);
-                return (serde_json::Value::Array(vec), length);
+                return (Value::Array(vec), &en_value[1..]);
             } else {
                 panic!("Unhandled encoded chacter: {}", c);
             }
+
+            if en_value.is_empty() {
+                panic!("There is no the ending 'e' symbol for outer list");
+            }
         }
-        // serde_json::Value::Array(vec)
         panic!("Unhandled encoded value: {}", encoded_value);
     }
 
-    #[allow(dead_code)]
-    fn decode_string(encoded_value: &str) -> serde_json::Value {
+    fn decode_string(encoded_value: &str) -> (Value, &str) {
         let colon_index = encoded_value.find(':').unwrap();
         let number_string = &encoded_value[..colon_index];
         let number = number_string.parse::<i64>().unwrap();
         let string = &encoded_value[colon_index + 1..colon_index + 1 + number as usize];
-        return serde_json::Value::String(string.to_string());
+        (
+            Value::String(string.to_string()),
+            &encoded_value[colon_index + 1 + number as usize..],
+        )
     }
 
-    #[allow(dead_code)]
-    fn decode_integer(encoded_value: &str) -> serde_json::Value {
-        let number_string = &encoded_value[1..encoded_value.len() - 1];
+    fn decode_integer(encoded_value: &str) -> (Value, &str) {
+        let end_index = encoded_value.find('e').unwrap();
+        let number_string = &encoded_value[1..end_index];
         let number = number_string.parse::<i64>().unwrap();
-        return serde_json::Value::Number(number.into());
+        (
+            Value::Number(number.into()),
+            &encoded_value[end_index + 1..],
+        )
     }
 }
 
@@ -106,15 +119,12 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let command = &args[1];
 
-    // let (test, _) = decode_list("l5:hello3:wow7:abcdef7i77ee");
-    // let (test, _) = decode_list("l5:hello3:wow7:abcdef7i77el5:helloi52eee");
+    // let test = Bencode::decode("l5:hello3:wow7:abcdef7i77ee");
+    // let test = Bencode::decode("l5:hello3:wow7:abcdef7i77el5:helloi52eee");
+    // let test = Bencode::decode("d3:foo3:bar5:helloi52ee");
     // println!("{}", test.to_string());
 
     if command == "decode" {
-        // You can use print statements as follows for debugging, they'll be visible when running tests.
-        // println!("Logs from your program will appear here!");
-
-        // Uncomment this block to pass the first stage
         let encoded_value = &args[2];
         let decoded_value = Bencode::decode(encoded_value);
         println!("{}", decoded_value.to_string());
