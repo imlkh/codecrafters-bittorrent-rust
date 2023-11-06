@@ -232,7 +232,7 @@ fn main() -> io::Result<()> {
         {
             let result = &map["announce"];
             if let Value::String(str) = result {
-                println!("Tracker URL: {}", str);
+                println!("Tracker URL: {}", &str[..str.len()-1]);
             }
         }
 
