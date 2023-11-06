@@ -165,12 +165,12 @@ fn main() -> io::Result<()> {
         // let i = 181; println!("buffer[{}] = {}, {} as char", i, buffer[i], buffer[i] as char);
         // let i = 182; println!("buffer[{}] = {}", i, buffer[i]);
 
-        let counter = buffer
+        let _counter = buffer
             .iter()
             .enumerate()
             .filter(|(_,&b)| !b.is_ascii() || b.is_ascii_control())
             .count();
-        println!("counter = {}", counter);
+        // println!("_counter = {}", _counter);
 
         let _non_ascii: Vec<usize> = buffer
             .iter()
@@ -227,7 +227,8 @@ fn main() -> io::Result<()> {
         //         }
         //
         //     });
-        println!("{}", decoded_value.to_string());
+        // println!("{}", decoded_value.to_string());
+        println!("Tracker URL: {}", *decoded_value.get("announce").unwrap());
 
         Ok(())
     } else {
