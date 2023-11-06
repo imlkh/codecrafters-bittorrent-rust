@@ -168,11 +168,11 @@ fn main() -> io::Result<()> {
         let counter = buffer
             .iter()
             .enumerate()
-            .filter(|(i,&b)| !b.is_ascii() || b.is_ascii_control())
+            .filter(|(_,&b)| !b.is_ascii() || b.is_ascii_control())
             .count();
         println!("counter = {}", counter);
 
-        let non_ascii: Vec<usize> = buffer
+        let _non_ascii: Vec<usize> = buffer
             .iter()
             .enumerate()
             .filter(|(_,&b)| !b.is_ascii() || b.is_ascii_control())
