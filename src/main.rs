@@ -134,7 +134,7 @@ fn main() -> io::Result<()> {
     if command == "decode" {
         let encoded_value = &args[2];
         let decoded_value = Bencode::decode(encoded_value);
-        println!("{}", decoded_value.to_string());
+        // println!("{}", decoded_value.to_string());
 
         Ok(())
     } else if command == "info" {
@@ -149,7 +149,7 @@ fn main() -> io::Result<()> {
         f.read_to_end(&mut buffer)?;
         // let n = f.read(&mut buffer)?;
         // println!("n = {n}");
-        println!("buffer.len() = {}",buffer.len());
+        // println!("buffer.len() = {}",buffer.len());
     
         // one byte for two hexa-decimal values
 
@@ -159,11 +159,11 @@ fn main() -> io::Result<()> {
             // Err(l) => println!("error : {}", l)
         // }
 
-        println!("buffer[0] = {}", buffer[0] as char);
-        println!("buffer[1] = {}", buffer[1] as char);
-        let i = 212; println!("buffer[{}] = {}, {} as char", i, buffer[i], buffer[i] as char);
-        let i = 181; println!("buffer[{}] = {}, {} as char", i, buffer[i], buffer[i] as char);
-        let i = 182; println!("buffer[{}] = {}", i, buffer[i]);
+        // println!("buffer[0] = {}", buffer[0] as char);
+        // println!("buffer[1] = {}", buffer[1] as char);
+        // let i = 212; println!("buffer[{}] = {}, {} as char", i, buffer[i], buffer[i] as char);
+        // let i = 181; println!("buffer[{}] = {}, {} as char", i, buffer[i], buffer[i] as char);
+        // let i = 182; println!("buffer[{}] = {}", i, buffer[i]);
 
         let counter = buffer
             .iter()
@@ -177,10 +177,10 @@ fn main() -> io::Result<()> {
             .enumerate()
             .filter(|(_,&b)| !b.is_ascii() || b.is_ascii_control())
             .map(|(i,_)| i)
-            .inspect(|i| print!("{}, ", i))
+            // .inspect(|i| print!("{}, ", i))
             .collect();
 
-        println!("");
+        // println!("");
         // buffer.iter().for_each(|&b| println!("{}", b as char));
         // let str : String = buffer[..210]
         let str : String = buffer
@@ -195,16 +195,16 @@ fn main() -> io::Result<()> {
             // .inspect(|(i,_)| print!("{},", i))
             .map(|(i,&b)| b as char)
             .collect();
-        println!("{}", str);
+        // println!("{}", str);
 
 
         // println!("{}", &str[..172]);
-        println!("{}", &str[..98]);
+        // println!("{}", &str[..98]);
 
         let mut str = (&str[..98]).to_owned();
         str += "e";
 
-        println!("str : {}", str);
+        // println!("str : {}", str);
        
         // char::from_u32(i)
         // println!("buffer : {}", buffer);
