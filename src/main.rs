@@ -228,7 +228,13 @@ fn main() -> io::Result<()> {
         //
         //     });
         // println!("{}", decoded_value.to_string());
-        println!("Tracker URL: {}", *decoded_value.get("announce").unwrap());
+        if let Value::Object(map) = decoded_value
+        {
+            let result = &map["announce"];
+            if let Value::String(str) = result {
+                println!("Tracker URL: {}", str);
+            }
+        }
 
         Ok(())
     } else {
