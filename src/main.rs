@@ -134,7 +134,7 @@ fn main() -> io::Result<()> {
     if command == "decode" {
         let encoded_value = &args[2];
         let decoded_value = Bencode::decode(encoded_value);
-        // println!("{}", decoded_value.to_string());
+        println!("{}", decoded_value.to_string());
 
         Ok(())
     } else if command == "info" {
@@ -189,11 +189,11 @@ fn main() -> io::Result<()> {
         // buffer
             .iter()
             .enumerate()
-            .filter(|(i,&b)| b.is_ascii() && !b.is_ascii_control())
+            .filter(|(_,&b)| b.is_ascii() && !b.is_ascii_control())
             // .for_each(|&b| print!("{}", b as char));
             // .for_each(|&b| print!("{}", b.to ));
             // .inspect(|(i,_)| print!("{},", i))
-            .map(|(i,&b)| b as char)
+            .map(|(_,&b)| b as char)
             .collect();
         // println!("{}", str);
 
