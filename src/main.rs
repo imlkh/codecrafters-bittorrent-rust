@@ -201,8 +201,9 @@ fn main() -> io::Result<()> {
         // println!("{}", &str[..172]);
         // println!("{}", &str[..98]);
 
-        let mut str = (&str[..98]).to_owned();
-        str += "e";
+        // let mut str = (&str[..98]).to_owned();
+        let mut str = (&str[..169]).to_owned();
+        str += "4:testee";
 
         // println!("str : {}", str);
        
@@ -231,9 +232,13 @@ fn main() -> io::Result<()> {
         if let Value::Object(map) = decoded_value
         {
             let result = &map["announce"];
+            let map = &map["info"];
+            // println!("map : {}", map.to_string());
             if let Value::String(str) = result {
                 print!("Tracker URL: {}", str);
             }
+            println!();
+            println!("Length: {}", (*map)["length"]);
         }
 
         Ok(())
