@@ -202,7 +202,7 @@ fn main() -> io::Result<()> {
         // println!("{}", &str[..98]);
 
         // let mut str = (&str[..98]).to_owned();
-        let mut str = (&str[..168]).to_owned();
+        let mut str = (&str[..169]).to_owned();
         str += "4:testee";
 
         // println!("str : {}", str);
