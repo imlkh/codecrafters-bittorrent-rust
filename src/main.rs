@@ -11,7 +11,6 @@ pub mod bencode;
 
 use crate::bencode::Bencode;
 
-
 // Usage: your_bittorrent.sh decode "<encoded_value>"
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -19,7 +18,7 @@ fn main() -> io::Result<()> {
 
     if command == "decode" {
         let encoded_value = &args[2];
-        let decoded_value = Bencode::decode(encoded_value);
+        let decoded_value = encoded_value.decode();
         println!("{}", decoded_value.to_string());
 
         Ok(())
@@ -103,7 +102,7 @@ fn main() -> io::Result<()> {
         // println!("char : {}", char);
         // println!("encoded_value : {}", encoded_value);
         // println!("buffer.len() = {}, buffer[0] = {}", buffer.len(), &buffer[0]);
-        let decoded_value = Bencode::decode(encoded_value);
+        let decoded_value = encoded_value.decode();
         // buffer.iter().for_each(|b| println!("{}",b));
         // buffer.iter().for_each(|b|
         //     {
