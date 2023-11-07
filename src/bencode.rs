@@ -5,6 +5,24 @@
 
 use serde_json::{Map, Value};
 
+pub trait BE {
+    // fn decode(&self) -> Value;
+    fn decode_integer(&self) -> (Value, &str);
+}
+
+impl BE for str {
+
+    fn decode_integer(&self) -> (Value, &str) {
+        let end_index = self.find('e').unwrap();
+        let number_string = &self[1..end_index];
+        let number = number_string.parse::<i64>().unwrap();
+        (
+            Value::Number(number.into()),
+            &self[end_index + 1..],
+        )
+    }
+}
+
 pub struct Bencode {}
 
 impl Bencode {
@@ -118,6 +136,14 @@ impl Bencode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn decode_integer() {
+        assert_eq!(
+            // Bencode::decode("i52e").to_string(), 
+            "i52e".decode_integer().0.to_string(), 
+            "52");
+    }
 
     #[test]
     fn decode_list() {
