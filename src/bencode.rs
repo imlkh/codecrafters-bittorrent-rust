@@ -9,7 +9,7 @@ pub trait Bencode {
     fn decode(&self) -> Value;
     fn decode_each(&self) -> (Value, &Self);
     fn decode_integer(&self) -> (Value, &Self);
-    fn decode_string(&self) -> (Value, &Self);
+    fn decode_string(&self, is_hexadecimal: bool) -> (Value, &Self);
     fn decode_dictionary(&self) -> (Value, &Self);
     fn decode_list(&self) -> (Value, &Self);
 }
@@ -32,7 +32,7 @@ impl Bencode for str {
             Some('d') => return self.decode_dictionary(),
             Some(c) => {
                 if c.is_digit(10) {
-                    return self.decode_string();
+                    return self.decode_string(false);
                 } else {
                     panic!("Unhandled encoded integer value: {}", self)
                 }
@@ -68,7 +68,7 @@ impl Bencode for str {
             // println!("c = {}, en_value = {}", c, en_value);
             if c.is_digit(10) {
                 // println!("String");
-                let (value, encoded_next) = en_value.decode_string();
+                let (value, encoded_next) = en_value.decode_string(false);
                 vec.push(value);
                 en_value = encoded_next;
             } else if c == 'i' {
@@ -99,7 +99,7 @@ impl Bencode for str {
         panic!("Unhandled encoded value: {}", en_value);
     }
 
-    fn decode_string(&self) -> (Value, &str) {
+    fn decode_string(&self, _is_hexadecimal: bool) -> (Value, &str){
         let colon_index = self.find(':').unwrap();
         let number_string = &self[..colon_index];
         let number = number_string.parse::<i64>().unwrap();
@@ -149,7 +149,7 @@ impl Bencode for [u8] {
             Some(&b) => {
                 let c = b as char;
                 if c.is_digit(10) {
-                    return self.decode_string();
+                    return self.decode_string(false);
                 } else {
                     panic!("Unhandled encoded integer value, its length : {}", self.len())
                 }
@@ -174,19 +174,28 @@ impl Bencode for [u8] {
             &self[number_counter + 2..],
         )
     }
-    fn decode_string(&self) -> (Value, &[u8]){
+    fn decode_string(&self, is_hexadecimal: bool) -> (Value, &[u8]){
         let colon_index = self.iter()
             // .inspect(|&&b| eprintln!("{}", b as char))
             .take_while(|&&b| b != b':')
             .count();
         let number_string = String::from_utf8((&self[..colon_index]).into()).unwrap();
         let number = number_string.parse::<i64>().unwrap();
-        let string = String::from_utf8((&self[colon_index + 1..colon_index + 1 + number as usize]).into()).unwrap();
-        // consider storing it as Vec<u8>
-        (
-            Value::String(string.to_string()),
-            &self[colon_index + 1 + number as usize..],
-        )
+        if is_hexadecimal {
+            let pieces = &self[colon_index + 1..colon_index + 1 + number as usize];
+            let string: String = pieces.iter().map(|b| format!("{:02x}",b)).collect();
+            (
+                Value::String(string.to_string()),
+                &self[colon_index + 1 + number as usize..],
+            )
+
+        } else {
+            let string = String::from_utf8((&self[colon_index + 1..colon_index + 1 + number as usize]).into()).unwrap();
+            (
+                Value::String(string.to_string()),
+                &self[colon_index + 1 + number as usize..],
+            )
+        }
 
     }
     fn decode_dictionary(&self) -> (Value, &[u8]){
@@ -195,11 +204,17 @@ impl Bencode for [u8] {
 
         while Some(&b'e') != en_value.iter().next() {
             let (key, en_value_) = en_value.decode_each();
-            let (value, en_value_) = en_value_.decode_each();
-            en_value = en_value_;
 
-            if let serde_json::Value::String(s) = key {
-                map.insert(s, value);
+            if let Value::String(s) = key {
+                if s == "pieces" {
+                    let (value, en_value_) = en_value_.decode_string(true);
+                    en_value = en_value_;
+                    map.insert(s, value);
+                } else {
+                    let (value, en_value_) = en_value_.decode_each();
+                    en_value = en_value_;
+                    map.insert(s, value);
+                }
             } else {
                 panic!("key has to be a string");
             }
@@ -214,7 +229,7 @@ impl Bencode for [u8] {
         while let Some(&b) = en_value.iter().next() {
             if (b as char).is_digit(10) {
                 // println!("String");
-                let (value, encoded_next) = en_value.decode_string();
+                let (value, encoded_next) = en_value.decode_string(false);
                 vec.push(value);
                 en_value = encoded_next;
             } else if b == b'i' {
