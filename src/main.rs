@@ -44,6 +44,7 @@ fn main() -> io::Result<()> {
             }
             println!();
             println!("Length: {}", map["length"]);
+            println!("Info Hash: {}", map["pieces"]);
         }
 
         Ok(())
