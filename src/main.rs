@@ -40,9 +40,8 @@ fn main() -> io::Result<()> {
             let result = &map["announce"];
             let map = &map["info"];
             if let Value::String(str) = result {
-                print!("Tracker URL: {}", str);
+                println!("Tracker URL: {}", str);
             }
-            println!();
             println!("Length: {}", map["length"]);
         }
 
