@@ -7,11 +7,11 @@ use serde_json::{Map, Value};
 
 pub trait Bencode {
     fn decode(&self) -> Value;
-    fn decode_each(&self) -> (Value, &str);
-    fn decode_integer(&self) -> (Value, &str);
-    fn decode_string(&self) -> (Value, &str);
-    fn decode_dictionary(&self) -> (Value, &str);
-    fn decode_list(&self) -> (Value, &str);
+    fn decode_each(&self) -> (Value, &Self);
+    fn decode_integer(&self) -> (Value, &Self);
+    fn decode_string(&self) -> (Value, &Self);
+    fn decode_dictionary(&self) -> (Value, &Self);
+    fn decode_list(&self) -> (Value, &Self);
 }
 
 impl Bencode for str {
@@ -111,7 +111,7 @@ impl Bencode for str {
         )
     }
 
-    fn decode_integer(&self) -> (Value, &str) {
+    fn decode_integer(&self) -> (Value, &Self) {
         let end_index = self.find('e').unwrap();
         let number_string = &self[1..end_index];
         let number = number_string.parse::<i64>().unwrap();
