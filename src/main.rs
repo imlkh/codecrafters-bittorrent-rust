@@ -24,17 +24,12 @@ fn main() -> io::Result<()> {
         Ok(())
     } else if command == "info" {
         let file_path = &args[2];
-    //
-        // convert Vec<u8> to &str
         let mut f = File::open(file_path)?;
-        // let mut buffer : Vec<u8> = Vec::new();
-        // let mut buffer = [0u8; 200];
         let mut buffer : Vec<u8> = Vec::new();
-        // let mut buffer =  String::new();
         f.read_to_end(&mut buffer)?;
 
         let decoded_value = buffer.decode();
-        // println!("{}", decoded_value.to_string());
+        println!("{}", decoded_value.to_string());
 
         if let Value::Object(map) = decoded_value {
             let result = &map["announce"];
