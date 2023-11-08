@@ -49,10 +49,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let mut buffer: Vec<u8> = Vec::new();
         f.read_to_end(&mut buffer)?;
         let decoded_value = buffer.bdecode();
-        println!("{}", decoded_value.to_string());
+        // println!("{}", decoded_value.to_string());
 
         let map = decoded_value.as_object().unwrap();
-        let left = map["info"].as_object().unwrap()["piece length"].as_i64().unwrap().to_string();
+        let left = map["info"].as_object().unwrap()["piece length"]
+            .as_i64()
+            .unwrap()
+            .to_string();
         let info_hash = map["info hash"].as_str().unwrap();
         let info_hash = info_hash
             .chars()
@@ -62,44 +65,51 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .map(|arr| format!("%{}{}", arr[0], arr[1]).to_string())
             .collect::<String>();
 
-        // let info_hash = "%d6%9f%91%e6%b2%ae%4c%54%24%68%d1%07%3a%71%d4%ea%13%87%9a%7f";
-        println!("{}", info_hash);
-
-        let query_params = vec!(
+        let query_params = vec![
             ("uploaded", "0"),
             ("downloaded", "0"),
             ("compact", "1"),
             ("left", &left),
             ("peer_id", "00112233445566778899"),
             ("port", "6881"),
-        );
+        ];
 
         let url = &map["announce"].as_str().unwrap();
-        let url_with_query = format!("{}?{}&info_hash={}", url, serde_urlencoded::to_string(query_params).unwrap(), info_hash);
+        let url_with_query = format!(
+            "{}?{}&info_hash={}",
+            url,
+            serde_urlencoded::to_string(query_params).unwrap(),
+            info_hash
+        );
         // println!("{}", url_with_query);
 
         // let resp = reqwest::get("http://bittorrent-test-tracker.codecrafters.io/announce?uploaded=0&downloaded=0&left=23768&peer_id=00112233445566778899&port=6881&info_hash=%d6%9f%91%e6%b2%ae%4c%54%24%68%d1%07%3a%71%d4%ea%13%87%9a%7f").await?;
-        let resp = reqwest::get(url_with_query).await?;
+        // let resp = reqwest::get(url_with_query).await?;
+        let resp = reqwest::blocking::get(url_with_query)?;
         // println!("Status: {}", resp.status());
         // println!("Headers:\n{:#?}", resp.headers());
 
-        // let body = resp.text().await?;
-        // println!("Body:\n{}", body.to_string());
-        // println!("Body:\n{}", decoded.to_string());
+        if false {
+            // let body = resp.text().await?;
+            let body = resp.text()?;
+            println!("Body:\n{}", body.to_string());
+            // println!("Body:\n{}", decoded.to_string());
+        } else {
+            // let body = resp.bytes().await?;
+            let body = resp.bytes()?;
+            let decoded = body.to_vec().bdecode();
+            // println!("Body:\n{}", decoded.to_string());
 
-        let body = resp.bytes().await?;
-        // body.iter().for_each(|b| eprintln!("{},", *b as char));
-        let decoded = body.to_vec().bdecode();
-        // println!("Body:\n{}", decoded.to_string());
-
-        // println!("{}", decoded["peers"].to_string());
-        if let Value::Array(vec) = &decoded["peers"] {
-            vec.iter().for_each(|map| println!("{}:{}", map["ip"].as_str().unwrap(), map["port"].to_string()));
+            if let Value::Array(vec) = &decoded["peers"] {
+                vec.iter().for_each(|map| {
+                    println!(
+                        "{}:{}",
+                        map["ip"].as_str().unwrap(),
+                        map["port"].to_string()
+                    )
+                });
+            }
         }
-        // println!("{:#?}", resp);
-
-        // println!("finished!!");
-
         Ok(())
     } else {
         println!("unknown command: {}", args[1]);
