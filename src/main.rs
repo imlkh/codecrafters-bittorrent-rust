@@ -49,7 +49,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let mut buffer: Vec<u8> = Vec::new();
         f.read_to_end(&mut buffer)?;
         let decoded_value = buffer.bdecode();
-        // println!("{}", decoded_value.to_string());
+        println!("{}", decoded_value.to_string());
 
         let map = decoded_value.as_object().unwrap();
         let left = map["info"].as_object().unwrap()["piece length"].as_i64().unwrap().to_string();
@@ -63,7 +63,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .collect::<String>();
 
         // let info_hash = "%d6%9f%91%e6%b2%ae%4c%54%24%68%d1%07%3a%71%d4%ea%13%87%9a%7f";
-        // println!("{}", info_hash);
+        println!("{}", info_hash);
 
         let query_params = vec!(
             ("uploaded", "0"),
