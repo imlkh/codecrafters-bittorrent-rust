@@ -40,9 +40,13 @@ fn main() -> io::Result<()> {
             }
             println!();
             println!("Length: {}", info["length"]);
-            println!("Info Hash: {}", map["info hash"]);
+            if let Value::String(str) = &map["info hash"] {
+                println!("Info Hash: {}", str);
+            }
             println!("Piece Length: {}", info["piece length"]);
-            println!("Piece Hashes:\n{}", info["pieces"]);
+            if let Value::String(str) = &info["pieces"] {
+                println!("Piece Hashes:\n{}", str);
+            }
         }
 
         Ok(())
