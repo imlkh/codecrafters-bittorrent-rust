@@ -29,19 +29,20 @@ fn main() -> io::Result<()> {
         f.read_to_end(&mut buffer)?;
 
         let decoded_value = buffer.decode();
-        println!("{}", decoded_value.to_string());
+        // println!("{}", decoded_value.to_string());
 
         if let Value::Object(map) = decoded_value {
             let result = &map["announce"];
-            let map = &map["info"];
+            let info = &map["info"];
+            // println!("info\n{}", info.to_string());
             if let Value::String(str) = result {
                 print!("Tracker URL: {}", str);
             }
             println!();
-            println!("Length: {}", map["length"]);
-            // println!("Info Hash: {}", map["info hash??"]);
-            println!("Piece Length: {}", map["piece length"]);
-            println!("Piece Hashes:\n{}", map["pieces"]);
+            println!("Length: {}", info["length"]);
+            println!("Info Hash: {}", map["info hash"]);
+            println!("Piece Length: {}", info["piece length"]);
+            println!("Piece Hashes:\n{}", info["pieces"]);
         }
 
         Ok(())

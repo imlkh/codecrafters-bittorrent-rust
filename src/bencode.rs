@@ -4,7 +4,7 @@
 //!
 
 use serde_json::{Map, Value};
-// use base64::{engine::general_purpose, Engine as _};
+use sha1::{Digest, Sha1};
 
 pub trait Bencode {
     fn decode(&self) -> Value;
@@ -207,14 +207,21 @@ impl Bencode for [u8] {
 
         while Some(&b'e') != en_value.iter().next() {
             let (key, en_value_) = en_value.decode_each();
-
+            en_value = en_value_;
             if let Value::String(s) = key {
+                if s == "info" {
+                    let mut hasher = Sha1::new();
+                    hasher.update(&en_value[..en_value.len()-1]);
+                    let result = hasher.finalize();
+                    let info_hash: String = result.iter().map(|b| format!("{:02x}",b)).collect();
+                    map.insert("info hash".to_string(), Value::String(info_hash));
+                } 
                 if s == "pieces" {
-                    let (value, en_value_) = en_value_.decode_string(true);
+                    let (value, en_value_) = en_value.decode_string(true);
                     en_value = en_value_;
                     map.insert(s, value);
                 } else {
-                    let (value, en_value_) = en_value_.decode_each();
+                    let (value, en_value_) = en_value.decode_each();
                     en_value = en_value_;
                     map.insert(s, value);
                 }
