@@ -181,11 +181,11 @@ impl Bencode for [u8] {
             .take_while(|&&b| b != b':')
             .count();
         let number_string = String::from_utf8((&self[..colon_index]).into()).unwrap();
+        // eprintln!("number_string {}", number_string);
         let number = number_string.parse::<i64>().unwrap();
         if is_hexadecimal {
             // eprintln!("byte length is {}", number);
             let pieces = &self[colon_index + 1..colon_index + 1 + number as usize];
-            // let string = String::from_utf8((&pieces[..20]).into()).unwrap(); 
             let string: String = pieces.iter().map(|b| format!("{:02x}",b)).collect();
             (
                 Value::String(string.to_string()),
@@ -208,6 +208,7 @@ impl Bencode for [u8] {
         while Some(&b'e') != en_value.iter().next() {
             let (key, en_value_) = en_value.bdecode_each();
             en_value = en_value_;
+            // eprintln!("key = {}", key);
             if let Value::String(s) = key {
                 if s == "info" {
                     let mut hasher = Sha1::new();
@@ -216,11 +217,28 @@ impl Bencode for [u8] {
                     let info_hash: String = result.iter().map(|b| format!("{:02x}",b)).collect();
                     map.insert("info hash".to_string(), Value::String(info_hash));
                 } 
-                if s == "pieces" {
+                if s == "pieces" || s == "peer id" {
                     let (value, en_value_) = en_value.bdecode_string(true);
                     en_value = en_value_;
                     map.insert(s, value);
-                } else {
+                } 
+                // else if s == "peersxxxxx" {
+                //     
+                //     let num = 17;
+                //     let mut iter = &en_value[..100].iter();
+                //     let check_rest: String = iter.clone().map(|&b| format!("{}\n", b as char)).collect();
+                //     eprintln!("check_rest :  {}", check_rest);
+                //
+                //     // eprintln!("en_value first : {}", *iter.next().unwrap() as char);
+                //     let peers_ip = &en_value[..num]
+                //         .chunks(6)
+                //         .map(|arr| arr[..4].iter().map(|b| b.to_string()).collect::<String>() )
+                //         .collect::<Vec<String>>().join("\n");
+                //
+                //     en_value = &en_value[num..];
+                //     map.insert(s, Value::String(peers_ip.to_string()));
+                // } 
+                else {
                     let (value, en_value_) = en_value.bdecode_each();
                     en_value = en_value_;
                     map.insert(s, value);
