@@ -3,6 +3,8 @@
 //! decode bencoded valus to have intgers, strings, lists and, dictionaries
 //!
 
+use anyhow::Result;
+
 use serde_json::{Map, Value};
 use sha1::{Digest, Sha1};
 
@@ -14,6 +16,11 @@ pub trait Bencode {
     fn bdecode_dictionary(&self) -> (Value, &Self);
     fn bdecode_list(&self) -> (Value, &Self);
 }
+
+// fn test() -> Result<()>
+// {
+//     Ok(())
+// }
 
 impl Bencode for str {
     fn bdecode(&self) -> Value {
@@ -305,7 +312,7 @@ mod tests {
 
     #[test]
     fn bdecode_string_byte() {
-        assert_eq!(b"5:hello".bdecode().to_string(), "\"hello\"");
+        assert_eq!(b"5:hello".bdecode().as_str().unwrap(), "hello");
     }
 
     #[test]
@@ -335,7 +342,7 @@ mod tests {
 
     #[test]
     fn bdecode_integer() {
-        assert_eq!("5:hello".bdecode().to_string(), "\"hello\"");
+        assert_eq!("5:hello".bdecode().as_str().unwrap(), "hello");
     }
 
     #[test]

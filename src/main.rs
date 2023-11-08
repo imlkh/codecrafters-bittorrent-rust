@@ -1,11 +1,11 @@
 use std::env;
 
 // use std::io;
-use std::error::Error;
 use std::fs::File;
 use std::io::Read;
 
 use serde_json::Value;
+use anyhow::Result;
 // Available if you need it!
 // use serde_bencode
 pub mod bencode;
@@ -14,7 +14,7 @@ use crate::bencode::Bencode;
 
 // Usage: your_bittorrent.sh decode "<encoded_value>"
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     let command = &args[1];
 
@@ -78,7 +78,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let url_with_query = format!(
             "{}?{}&info_hash={}",
             url,
-            serde_urlencoded::to_string(query_params).unwrap(),
+            serde_urlencoded::to_string(query_params)?,
             info_hash
         );
         // println!("{}", url_with_query);
