@@ -68,6 +68,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let query_params = vec!(
             ("uploaded", "0"),
             ("downloaded", "0"),
+            ("compact", "1"),
             ("left", &left),
             ("peer_id", "00112233445566778899"),
             ("port", "6881"),
