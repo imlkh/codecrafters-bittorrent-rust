@@ -278,28 +278,28 @@ mod tests {
     #[test]
     fn bdecode_integer_byte() {
         assert_eq!(
-            b"i-5222e".decode().to_string(), 
+            b"i-5222e".bdecode().to_string(), 
             "-5222");
     }
 
     #[test]
     fn bdecode_string_byte() {
         assert_eq!(
-            b"5:hello".decode().to_string(), 
+            b"5:hello".bdecode().to_string(), 
             "\"hello\"");
     }
 
     #[test]
     fn bdecode_list_byte() {
         assert_eq!(
-            b"l5:hello3:wow7:abcdef7i77el5:helloi52eee".decode().to_string(), 
+            b"l5:hello3:wow7:abcdef7i77el5:helloi52eee".bdecode().to_string(), 
             "[\"hello\",\"wow\",\"abcdef7\",77,[\"hello\",52]]");
     }
 
     #[test]
     fn bdecode_dictionary_byte() {
         assert_eq!(
-            b"d3:foo3:bar5:helloi52ee".decode().to_string(), 
+            b"d3:foo3:bar5:helloi52ee".bdecode().to_string(), 
             "{\"foo\":\"bar\",\"hello\":52}");
     }
 
@@ -308,28 +308,28 @@ mod tests {
     #[test]
     fn bdecode_string() {
         assert_eq!(
-            "i52e".decode().to_string(), 
+            "i52e".bdecode().to_string(), 
             "52");
     }
 
     #[test]
     fn bdecode_integer() {
         assert_eq!(
-            "5:hello".decode().to_string(), 
+            "5:hello".bdecode().to_string(), 
             "\"hello\"");
     }
 
     #[test]
     fn bdecode_list() {
         assert_eq!(
-            "l5:hello3:wow7:abcdef7i77el5:helloi52eee".decode().to_string(), 
+            "l5:hello3:wow7:abcdef7i77el5:helloi52eee".bdecode().to_string(), 
             "[\"hello\",\"wow\",\"abcdef7\",77,[\"hello\",52]]");
     }
 
     #[test]
     fn bdecode_dictionary() {
         assert_eq!(
-            "d3:foo3:bar5:helloi52ee".decode().to_string(), 
+            "d3:foo3:bar5:helloi52ee".bdecode().to_string(), 
             "{\"foo\":\"bar\",\"hello\":52}");
     }
 }
