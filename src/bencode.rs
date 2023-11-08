@@ -183,7 +183,7 @@ impl Bencode for [u8] {
         let number_string = String::from_utf8((&self[..colon_index]).into()).unwrap();
         let number = number_string.parse::<i64>().unwrap();
         if is_hexadecimal {
-            eprintln!("byte length is {}", number);
+            // eprintln!("byte length is {}", number);
             let pieces = &self[colon_index + 1..colon_index + 1 + number as usize];
             // let string = String::from_utf8((&pieces[..20]).into()).unwrap(); 
             let string: String = pieces.iter().map(|b| format!("{:02x}",b)).collect();
