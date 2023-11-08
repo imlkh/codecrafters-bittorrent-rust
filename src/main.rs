@@ -18,7 +18,7 @@ fn main() -> io::Result<()> {
 
     if command == "decode" {
         let encoded_value = &args[2];
-        let decoded_value = encoded_value.decode();
+        let decoded_value = encoded_value.bdecode();
         println!("{}", decoded_value.to_string());
 
         Ok(())
@@ -28,7 +28,7 @@ fn main() -> io::Result<()> {
         let mut buffer : Vec<u8> = Vec::new();
         f.read_to_end(&mut buffer)?;
 
-        let decoded_value = buffer.decode();
+        let decoded_value = buffer.bdecode();
         // println!("{}", decoded_value.to_string());
 
         if let Value::Object(map) = decoded_value {
