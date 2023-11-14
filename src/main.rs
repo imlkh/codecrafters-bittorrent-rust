@@ -116,6 +116,7 @@ async fn main() -> Result<()> {
         Ok(())
     } else if command == "handshake" {
         let file_path = &args[2];
+        let ip_address = &args[3];
         let mut f = File::open(file_path)?;
         let mut buffer: Vec<u8> = Vec::new();
         f.read_to_end(&mut buffer)?;
@@ -127,7 +128,8 @@ async fn main() -> Result<()> {
 
         eprintln!("length : {}, {:?}", info_hash.len(), info_hash);
 
-        let mut stream = TcpStream::connect("178.62.82.89:51470")?;
+        // let mut stream = TcpStream::connect("178.62.82.89:51470")?;
+        let mut stream = TcpStream::connect(ip_address)?;
 
         let mut message: Vec<u8> = Vec::new();
         message.push(19u8);
