@@ -4,18 +4,17 @@ use std::env;
 use std::fs::File;
 use std::io::Read;
 
-use serde_json::Value;
-use anyhow::{Result, Context};
-use std::net::{TcpStream, ToSocketAddrs};
-use std::io::Write;
+use anyhow::{Context, Result};
 use hex;
+use serde_json::Value;
+use std::io::Write;
+use std::net::{TcpStream, ToSocketAddrs};
 // Available if you need it!
 // use serde_bencode
 pub mod bencode;
 
 use crate::bencode::Bencode;
 
-// Usage: your_bittorrent.sh decode "<encoded_value>"
 #[tokio::main]
 async fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -31,19 +30,29 @@ async fn main() -> Result<()> {
         let file_path = &args[2];
         let mut f = File::open(file_path).context("could not open the info file")?;
         let mut buffer: Vec<u8> = Vec::new();
-        f.read_to_end(&mut buffer).context("could not read the info file")?;
+        f.read_to_end(&mut buffer)
+            .context("could not read the info file")?;
         let decoded_value = buffer.bdecode();
         // println!("{}", decoded_value.to_string());
 
         let map = decoded_value.as_object().context("this is not an object")?;
         let info = &map["info"];
         // println!("info\n{}", info.to_string());
-        print!("Tracker URL: {}", &map["announce"].as_str().context("this is not a string")?);
+        print!(
+            "Tracker URL: {}",
+            &map["announce"].as_str().context("this is not a string")?
+        );
         println!();
         println!("Length: {}", info["length"]);
-        println!("Info Hash: {}", &map["info hash"].as_str().context("this is not a string")?);
+        println!(
+            "Info Hash: {}",
+            &map["info hash"].as_str().context("this is not a string")?
+        );
         println!("Piece Length: {}", info["piece length"]);
-        println!("Piece Hashes:\n{}", &info["pieces"].as_str().context("this is not a string")?);
+        println!(
+            "Piece Hashes:\n{}",
+            &info["pieces"].as_str().context("this is not a string")?
+        );
 
         Ok(())
     } else if command == "peers" {
@@ -134,26 +143,28 @@ async fn main() -> Result<()> {
         let mut message: Vec<u8> = Vec::new();
         message.push(19u8);
         message.extend_from_slice(b"BitTorrent protocol");
-        message.extend_from_slice(&[0u8;8]);
+        message.extend_from_slice(&[0u8; 8]);
         message.extend_from_slice(&info_hash);
         message.extend_from_slice(b"00112233445566778899"); // peer id
 
         eprintln!("total length if the message : {}", message.len());
-        let mut message_recevied = vec![0u8;message.len()];
+        let mut message_recevied = vec![0u8; message.len()];
         // stream.write(&message)?;
         stream.write_all(&message)?;
-        let message_size = stream.read(&mut message_recevied).context("message read failed")?;
+        let message_size = stream
+            .read(&mut message_recevied)
+            .context("message read failed")?;
         // let message_size = stream.read_to_end(&mut message_recevied).context("message read failed")?;
         //
         eprintln!("the length of the received message is {message_size}");
         eprintln!("{:?}", message_recevied);
 
-        let peer_id = &message_recevied[message_recevied.len()-20..];
-        let peer_id: String = peer_id.iter().map(|b| format!("{:02x}",b)).collect();
+        let peer_id = &message_recevied[message_recevied.len() - 20..];
+        let peer_id: String = peer_id.iter().map(|b| format!("{:02x}", b)).collect();
         println!("Peer ID: {}", peer_id);
 
         Ok(())
-    }else {
+    } else {
         println!("unknown command: {}", args[1]);
         Ok(())
     }
