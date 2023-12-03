@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
     if command == "decode" {
         let encoded_value = &args[2];
         let decoded_value = encoded_value.bdecode();
-        println!("{}", decoded_value.to_string());
+        println!("{}", decoded_value);
 
         Ok(())
     } else if command == "info" {
@@ -104,7 +104,7 @@ async fn main() -> Result<()> {
         if false {
             // let body = resp.text().await?;
             let body = resp.text()?;
-            println!("Body:\n{}", body.to_string());
+            println!("Body:\n{}", body);
             // println!("Body:\n{}", decoded.to_string());
         } else {
             // let body = resp.bytes().await?;
@@ -113,13 +113,8 @@ async fn main() -> Result<()> {
             // println!("Body:\n{}", decoded.to_string());
 
             if let Value::Array(vec) = &decoded["peers"] {
-                vec.iter().for_each(|map| {
-                    println!(
-                        "{}:{}",
-                        map["ip"].as_str().unwrap(),
-                        map["port"].to_string()
-                    )
-                });
+                vec.iter()
+                    .for_each(|map| println!("{}:{}", map["ip"].as_str().unwrap(), map["port"]));
             }
         }
         Ok(())
