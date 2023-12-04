@@ -5,9 +5,11 @@ use std::fs::File;
 use std::io::Read;
 
 use anyhow::{Context, Result};
-use hex;
+// use hex;
 use serde_json::Value;
 use std::io::Write;
+
+#[allow(unused_imports)]
 use std::net::{TcpStream, ToSocketAddrs};
 // Available if you need it!
 // use serde_bencode

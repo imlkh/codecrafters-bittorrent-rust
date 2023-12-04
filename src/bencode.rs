@@ -3,7 +3,7 @@
 //! decode bencoded valus to have intgers, strings, lists and, dictionaries
 //!
 
-use anyhow::Result;
+// use anyhow::Result;
 
 use serde_json::{Map, Value};
 use sha1::{Digest, Sha1};
@@ -39,7 +39,7 @@ impl Bencode for str {
             Some('l') => return self.bdecode_list(),
             Some('d') => return self.bdecode_dictionary(),
             Some(c) => {
-                if c.is_digit(10) {
+                if c.is_ascii_digit() {
                     return self.bdecode_string();
                 } else {
                     panic!("Unhandled encoded integer value: {}", self)
@@ -54,7 +54,7 @@ impl Bencode for str {
         let mut map = Map::new();
         let mut en_value = &self[1..];
 
-        while Some('e') != en_value.chars().next() {
+        while !en_value.starts_with('e') {
             let (key, en_value_) = en_value.bdecode_each();
             let (value, en_value_) = en_value_.bdecode_each();
             en_value = en_value_;
@@ -74,7 +74,7 @@ impl Bencode for str {
 
         while let Some(c) = en_value.chars().next() {
             // println!("c = {}, en_value = {}", c, en_value);
-            if c.is_digit(10) {
+            if c.is_ascii_digit() {
                 // println!("String");
                 let (value, encoded_next) = en_value.bdecode_string();
                 vec.push(value);
@@ -147,7 +147,7 @@ impl Bencode for [u8] {
             Some(b'd') => return self.bdecode_dictionary(),
             Some(&b) => {
                 let c = b as char;
-                if c.is_digit(10) {
+                if c.is_ascii_digit() {
                     return self.bdecode_string();
                 } else {
                     panic!(
@@ -183,18 +183,18 @@ impl Bencode for [u8] {
         if let Ok(string) =
             String::from_utf8((&self[colon_index + 1..colon_index + 1 + number as usize]).into())
         {
-            return (
+            (
                 Value::String(string.to_string()),
                 &self[colon_index + 1 + number as usize..],
-            );
+            )
         } else {
             // hexadecimal representation
             let pieces = &self[colon_index + 1..colon_index + 1 + number as usize];
             let string: String = pieces.iter().map(|b| format!("{:02x}", b)).collect();
-            return (
+            (
                 Value::String(string.to_string()),
                 &self[colon_index + 1 + number as usize..],
-            );
+            )
         }
     }
     fn bdecode_dictionary(&self) -> (Value, &[u8]) {
@@ -229,7 +229,10 @@ impl Bencode for [u8] {
                     // eprintln!("number_string {}", number_string);
                     let number = match number_string.parse::<i64>() {
                         Ok(num) => num,
-                        Err(err) => panic!("parsing number of chacters is failed, number_string = {}\n{}", number_string, err),
+                        Err(err) => panic!(
+                            "parsing number of chacters is failed, number_string = {}\n{}",
+                            number_string, err
+                        ),
                     };
                     // let number = number_string.parse::<i64>().unwrap();
                     let ips = &en_value[colon_index + 1..colon_index + 1 + number as usize];
@@ -249,7 +252,7 @@ impl Bencode for [u8] {
                     });
 
                     en_value = &en_value[colon_index + 1 + number as usize..];
-                    map.insert(s, Value::Array(peers_ip.into()));
+                    map.insert(s, Value::Array(peers_ip));
                 } else {
                     let (value, en_value_) = en_value.bdecode_each();
                     en_value = en_value_;
@@ -267,7 +270,7 @@ impl Bencode for [u8] {
         let mut en_value = &self[1..];
 
         while let Some(&b) = en_value.iter().next() {
-            if (b as char).is_digit(10) {
+            if (b as char).is_ascii_digit() {
                 // println!("String");
                 let (value, encoded_next) = en_value.bdecode_string();
                 vec.push(value);
