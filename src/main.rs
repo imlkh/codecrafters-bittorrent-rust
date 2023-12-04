@@ -107,6 +107,101 @@ async fn main() -> Result<()> {
 
         Ok(())
     } else if command == "download_piece" {
+        if args.len() > 2 && &args[2] != "-o" {
+            // panic!("Not enough arguements")
+            println!("The second arguement has to be '-o': {}", args[2]);
+            return Ok(());
+        }
+        if args.len() < 6 {
+            println!("Not enough arguements, length: {}", args.len());
+            return Ok(());
+        }
+        let download_file_path = &args[3];
+        let file_path = &args[4];
+
+        eprintln!("file_path: {:?}", file_path);
+        eprintln!("download_file_path: {:?}", download_file_path);
+
+        let mut f = File::open(file_path)?;
+        let mut buffer: Vec<u8> = Vec::new();
+        f.read_to_end(&mut buffer)?;
+        let message = {
+            let decoded_value = buffer.bdecode();
+            Torrent::new(&decoded_value)?.to_handshake().to_message()
+        };
+        let ip_address = "178.62.82.89:51470";
+        let mut message_recevied = vec![0u8; message.len()]; // initialize message buffer
+        let mut stream = TcpStream::connect(ip_address)?;
+        stream.write_all(&message)?;
+        let message_size = stream
+            .read(&mut message_recevied)
+            .context("message read failed")?;
+        eprintln!("the length of the received message is {message_size}");
+        // eprintln!("{:?}", message_recevied);
+
+        println!(
+            "Peer ID: {}",
+            message_recevied.to_owned().to_handshake().peer_id_as_str()
+        );
+
+        // for i in 0..3 {
+        let message_size = stream
+            .read(&mut message_recevied)
+            .context("message read failed")?;
+        eprintln!("the length of the received message is {message_size}");
+        println!("{:?}", &message_recevied[..message_size]);
+        // println!("{}: {:?}", i, &message_recevied[..message_size]);
+        // }
+        //
+        if message_recevied[4] == 5u8 {
+            let message = PeerMessage {
+                length: [0, 0, 0, 1],
+                id: 2,
+                payload: Vec::<u8>::new(),
+            }
+            .to_message();
+            stream.write_all(&message)?;
+        }
+
+        let message_size = stream
+            .read(&mut message_recevied)
+            .context("message read failed")?;
+        eprintln!("the length of the received message is {message_size}");
+        println!("{:?}", &message_recevied[..message_size]);
+
+        // request a piece
+        if message_recevied[4] == 1u8 {
+            let index = [0u8, 0u8, 0u8, 0u8];
+            let begin = [0u8, 0u8, 0u8, 0u8];
+            let length = [0u8, 0u8, 64u8, 0u8];
+            let mut payload = Vec::<u8>::new();
+            payload.extend(&index);
+            payload.extend(&begin);
+            payload.extend(&length);
+
+            let message = PeerMessage {
+                length: [0, 0, 0, 1 + payload.len() as u8],
+                id: 6,
+                payload,
+            }
+            .to_message();
+            println!("{:?} message sent", message);
+            stream.write_all(&message)?;
+        }
+
+        let mut message_recevied = vec![0u8; 16384]; // initialize message buffer
+        let message_size = stream
+            .read(&mut message_recevied)
+            .context("message read failed")?;
+        eprintln!("the length of the received message is {message_size}");
+        // println!("{:?}", &message_recevied[..message_size]);
+
+        let message_size = stream
+            .read(&mut message_recevied)
+            .context("message read failed")?;
+        eprintln!("the length of the received message is {message_size}");
+        // println!("{:?}", &message_recevied[..message_size]);
+
         Ok(())
     } else {
         println!("unknown command: {}", args[1]);

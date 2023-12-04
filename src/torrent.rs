@@ -125,6 +125,23 @@ impl fmt::Display for Torrent {
     }
 }
 
+pub struct PeerMessage {
+    pub length: [u8; 4],
+    pub id: u8,
+    pub payload: Vec<u8>,
+}
+
+impl PeerMessage {
+    pub fn to_message(&self) -> Vec<u8> {
+        let mut vec: Vec<u8> = Vec::new();
+        // vec.push(19u8);
+        vec.extend(self.length);
+        vec.push(self.id);
+        vec.extend_from_slice(&self.payload);
+        vec
+    }
+}
+
 // print!("Tracker URL: {}", &torrent.url);
 // println!();
 // println!("Length: {}", &torrent.length);
