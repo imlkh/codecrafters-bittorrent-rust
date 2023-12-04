@@ -15,7 +15,7 @@ use std::net::{TcpStream, ToSocketAddrs};
 // use serde_bencode
 
 use bittorrent_starter_rust::bencode::Bencode;
-use bittorrent_starter_rust::torrent::Torrent;
+use bittorrent_starter_rust::torrent::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -45,21 +45,9 @@ async fn main() -> Result<()> {
         f.read_to_end(&mut buffer)?;
         let decoded_value = buffer.bdecode();
         // println!("{}", decoded_value.to_string());
+        let torrent = Torrent::new(&decoded_value)?;
 
-        let map = decoded_value.as_object().unwrap();
-        let left = map["info"].as_object().unwrap()["piece length"]
-            .as_i64()
-            .unwrap()
-            .to_string();
-        let info_hash = map["info hash"].as_str().unwrap();
-        let info_hash = info_hash
-            .chars()
-            .collect::<Vec<char>>()
-            .chunks(2)
-            // .inspect(|arr| println!("%{}{}", arr[0], arr[1]))
-            .map(|arr| format!("%{}{}", arr[0], arr[1]).to_string())
-            .collect::<String>();
-
+        let left = torrent.piece_length.to_string();
         let query_params = vec![
             ("uploaded", "0"),
             ("downloaded", "0"),
@@ -69,12 +57,11 @@ async fn main() -> Result<()> {
             ("port", "6881"),
         ];
 
-        let url = &map["announce"].as_str().unwrap();
         let url_with_query = format!(
             "{}?{}&info_hash={}",
-            url,
+            torrent.url,
             serde_urlencoded::to_string(query_params)?,
-            info_hash
+            torrent.info_hash.to_url()
         );
         // println!("{}", url_with_query);
 
@@ -84,21 +71,13 @@ async fn main() -> Result<()> {
         // println!("Status: {}", resp.status());
         // println!("Headers:\n{:#?}", resp.headers());
 
-        if false {
-            // let body = resp.text().await?;
-            let body = resp.text()?;
-            println!("Body:\n{}", body);
-            // println!("Body:\n{}", decoded.to_string());
-        } else {
-            // let body = resp.bytes().await?;
-            let body = resp.bytes()?;
-            let decoded = body.to_vec().bdecode();
-            // println!("Body:\n{}", decoded.to_string());
+        let body = resp.bytes()?;
+        let decoded = body.to_vec().bdecode();
+        // println!("Body:\n{}", decoded.to_string());
 
-            if let Value::Array(vec) = &decoded["peers"] {
-                vec.iter()
-                    .for_each(|map| println!("{}:{}", map["ip"].as_str().unwrap(), map["port"]));
-            }
+        if let Value::Array(vec) = &decoded["peers"] {
+            vec.iter()
+                .for_each(|map| println!("{}:{}", map["ip"].as_str().unwrap(), map["port"]));
         }
         Ok(())
     } else if command == "handshake" {
@@ -107,40 +86,27 @@ async fn main() -> Result<()> {
         let mut f = File::open(file_path)?;
         let mut buffer: Vec<u8> = Vec::new();
         f.read_to_end(&mut buffer)?;
-        let decoded_value = buffer.bdecode();
+        let message = {
+            let decoded_value = buffer.bdecode();
+            Torrent::new(&decoded_value)?.to_handshake().to_message()
+        };
 
-        let map = decoded_value.as_object().context("this is not an object")?;
-        let info_hash = map["info hash"].as_str().context("this is not a string")?;
-        let info_hash = hex::decode(info_hash).expect("Decoding failed");
-
-        eprintln!("length : {}, {:?}", info_hash.len(), info_hash);
-
-        // let mut stream = TcpStream::connect("178.62.82.89:51470")?;
+        let mut message_recevied = vec![0u8; message.len()]; // initialize message buffer
         let mut stream = TcpStream::connect(ip_address)?;
-
-        let mut message: Vec<u8> = Vec::new();
-        message.push(19u8);
-        message.extend_from_slice(b"BitTorrent protocol");
-        message.extend_from_slice(&[0u8; 8]);
-        message.extend_from_slice(&info_hash);
-        message.extend_from_slice(b"00112233445566778899"); // peer id
-
-        eprintln!("total length if the message : {}", message.len());
-        let mut message_recevied = vec![0u8; message.len()];
-        // stream.write(&message)?;
         stream.write_all(&message)?;
         let message_size = stream
             .read(&mut message_recevied)
             .context("message read failed")?;
-        // let message_size = stream.read_to_end(&mut message_recevied).context("message read failed")?;
-        //
         eprintln!("the length of the received message is {message_size}");
-        eprintln!("{:?}", message_recevied);
+        // eprintln!("{:?}", message_recevied);
 
-        let peer_id = &message_recevied[message_recevied.len() - 20..];
-        let peer_id: String = peer_id.iter().map(|b| format!("{:02x}", b)).collect();
-        println!("Peer ID: {}", peer_id);
+        println!(
+            "Peer ID: {}",
+            message_recevied.to_handshake().peer_id_as_str()
+        );
 
+        Ok(())
+    } else if command == "download_piece" {
         Ok(())
     } else {
         println!("unknown command: {}", args[1]);
