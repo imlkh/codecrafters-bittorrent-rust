@@ -49,7 +49,6 @@ impl Bencode for str {
         }
     }
 
-    #[allow(dead_code)]
     fn bdecode_dictionary(&self) -> (Value, &str) {
         let mut map = Map::new();
         let mut en_value = &self[1..];

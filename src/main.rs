@@ -13,9 +13,9 @@ use std::io::Write;
 use std::net::{TcpStream, ToSocketAddrs};
 // Available if you need it!
 // use serde_bencode
-pub mod bencode;
 
-use crate::bencode::Bencode;
+use bittorrent_starter_rust::bencode::Bencode;
+use bittorrent_starter_rust::torrent::Torrent;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -35,26 +35,7 @@ async fn main() -> Result<()> {
         f.read_to_end(&mut buffer)
             .context("could not read the info file")?;
         let decoded_value = buffer.bdecode();
-        // println!("{}", decoded_value.to_string());
-
-        let map = decoded_value.as_object().context("this is not an object")?;
-        let info = &map["info"];
-        // println!("info\n{}", info.to_string());
-        print!(
-            "Tracker URL: {}",
-            &map["announce"].as_str().context("this is not a string")?
-        );
-        println!();
-        println!("Length: {}", info["length"]);
-        println!(
-            "Info Hash: {}",
-            &map["info hash"].as_str().context("this is not a string")?
-        );
-        println!("Piece Length: {}", info["piece length"]);
-        println!(
-            "Piece Hashes:\n{}",
-            &info["pieces"].as_str().context("this is not a string")?
-        );
+        println!("{}", Torrent::new(&decoded_value)?);
 
         Ok(())
     } else if command == "peers" {
