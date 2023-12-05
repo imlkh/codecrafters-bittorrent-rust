@@ -214,9 +214,6 @@ async fn main() -> Result<()> {
             .context("message read failed")?;
         eprintln!("the length of the received message is {message_size}");
         eprintln!("{:?}", &message_recevied[..message_size]);
-        // println!("{}: {:?}", i, &message_recevied[..message_size]);
-        // }
-        //
 
         let peer_message = message_recevied
             .to_peer_message()
