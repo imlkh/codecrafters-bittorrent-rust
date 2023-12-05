@@ -157,7 +157,7 @@ impl ToPeerMessage for Vec<u8> {
             + ((self[2] as i32) << 8)
             + self[3] as i32;
 
-        eprintln!("len: {}, message_lenth: {}", self.len(), message_length);
+        // eprintln!("len: {}, message_lenth: {}", self.len(), message_length);
         if self.len() - 4 < message_length as usize {
             panic!("message is not completely parsed or wrong message");
         }
