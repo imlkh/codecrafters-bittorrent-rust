@@ -103,7 +103,7 @@ async fn main() -> Result<()> {
         eprintln!("the length of the received message is {message_size}");
         // eprintln!("{:?}", message_recevied);
 
-        eprintln!(
+        println!(
             "Peer ID: {}",
             message_recevied.to_handshake().peer_id_as_str()
         );
