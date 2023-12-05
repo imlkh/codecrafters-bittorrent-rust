@@ -28,20 +28,22 @@ impl HandShake {
 }
 
 pub trait ToHandShake {
-    fn to_handshake(self) -> HandShake;
+    fn to_handshake(&self) -> HandShake;
 }
 
 impl ToHandShake for Torrent {
-    fn to_handshake(self) -> HandShake {
+    fn to_handshake(&self) -> HandShake {
         HandShake {
-            info_hash: self.info_hash,
-            peer_id: self.peer_id,
+            info_hash: InfoHash {
+                val: (&self.info_hash.val[..]).into(),
+            },
+            peer_id: (&self.peer_id[..]).into(),
         }
     }
 }
 
 impl ToHandShake for Vec<u8> {
-    fn to_handshake(self) -> HandShake {
+    fn to_handshake(&self) -> HandShake {
         HandShake {
             info_hash: InfoHash {
                 val: hex::encode(&self[self.len() - 40..self.len() - 20]),
@@ -124,20 +126,131 @@ impl fmt::Display for Torrent {
         )
     }
 }
+pub enum PeerMessage {
+    Bitfield(Message),
+    Interested(Message),
+    Unchoke(Message),
+    Request(Message),
+    Piece(Message),
+}
 
-pub struct PeerMessage {
+pub enum MessageType {
+    Bitfield = 5,
+    Interested = 2,
+    Unchoke = 1,
+    Request = 6,
+    Piece = 7,
+}
+
+pub trait ToPeerMessage {
+    fn to_peer_message(&self) -> anyhow::Result<PeerMessage>;
+}
+
+impl ToPeerMessage for Vec<u8> {
+    fn to_peer_message(&self) -> anyhow::Result<PeerMessage> {
+        if self.len() < 5 {
+            panic!("length is too short");
+        }
+
+        let message_length = ((self[0] as i32) << 24)
+            + ((self[1] as i32) << 16)
+            + ((self[2] as i32) << 8)
+            + self[3] as i32;
+
+        eprintln!("len: {}, message_lenth: {}", self.len(), message_length);
+        if self.len() - 4 < message_length as usize {
+            panic!("message is not completely parsed or wrong message");
+        }
+
+        let message = Message {
+            length: [self[0], self[1], self[2], self[3]],
+            payload: self[5..(5 + message_length as usize - 1)].into(),
+        };
+
+        let message_type = if self[4] == MessageType::Bitfield as u8 {
+            MessageType::Bitfield
+        } else if self[4] == MessageType::Interested as u8 {
+            MessageType::Interested
+        } else if self[4] == MessageType::Unchoke as u8 {
+            MessageType::Unchoke
+        } else if self[4] == MessageType::Request as u8 {
+            MessageType::Request
+        } else if self[4] == MessageType::Piece as u8 {
+            MessageType::Piece
+        } else {
+            panic!("It's not a PeerMessage");
+        };
+
+        match message_type {
+            MessageType::Bitfield => Ok(PeerMessage::Bitfield(message)),
+            MessageType::Interested => Ok(PeerMessage::Interested(message)),
+            MessageType::Unchoke => Ok(PeerMessage::Unchoke(message)),
+            MessageType::Request => Ok(PeerMessage::Request(message)),
+            MessageType::Piece => Ok(PeerMessage::Piece(message)),
+        }
+    }
+}
+
+pub struct Message {
     pub length: [u8; 4],
-    pub id: u8,
+    // pub id: u8,
     pub payload: Vec<u8>,
 }
 
 impl PeerMessage {
+    pub fn new(message_type: MessageType, index: usize, begin: usize, length: usize) -> Self {
+        let mut payload = Vec::<u8>::new();
+
+        let index: [u8; 4] = [
+            (index >> 24) as u8,
+            (index >> 16) as u8,
+            (index >> 8) as u8,
+            index as u8,
+        ];
+        let begin: [u8; 4] = [
+            (begin >> 24) as u8,
+            (begin >> 16) as u8,
+            (begin >> 8) as u8,
+            begin as u8,
+        ];
+        let length_vec: [u8; 4] = [
+            (length >> 24) as u8,
+            (length >> 16) as u8,
+            (length >> 8) as u8,
+            length as u8,
+        ];
+
+        if length != 0 {
+            payload.extend(&index);
+            payload.extend(&begin);
+            payload.extend(&length_vec);
+        }
+        let message = Message {
+            length: [0, 0, 0, 1 + payload.len() as u8],
+            // id,
+            payload,
+        };
+        match message_type {
+            MessageType::Bitfield => PeerMessage::Bitfield(message),
+            MessageType::Interested => PeerMessage::Interested(message),
+            MessageType::Unchoke => PeerMessage::Unchoke(message),
+            MessageType::Request => PeerMessage::Request(message),
+            MessageType::Piece => PeerMessage::Piece(message),
+        }
+    }
     pub fn to_message(&self) -> Vec<u8> {
         let mut vec: Vec<u8> = Vec::new();
         // vec.push(19u8);
-        vec.extend(self.length);
-        vec.push(self.id);
-        vec.extend_from_slice(&self.payload);
+        let (message, id) = match self {
+            PeerMessage::Bitfield(message) => (message, 5u8),
+            PeerMessage::Interested(message) => (message, 2u8),
+            PeerMessage::Unchoke(message) => (message, 1u8),
+            PeerMessage::Request(message) => (message, 6u8),
+            PeerMessage::Piece(message) => (message, 7u8),
+        };
+        vec.extend(message.length);
+        vec.push(id);
+        vec.extend_from_slice(&message.payload);
         vec
     }
 }
