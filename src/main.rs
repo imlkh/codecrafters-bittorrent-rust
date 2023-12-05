@@ -235,7 +235,7 @@ async fn main() -> Result<()> {
         let message_size = stream
             .read(&mut message_recevied)
             .context("message read failed")?;
-        // eprintln!("the length of the received message is {message_size}");
+        eprintln!("the length of the received message is {message_size}");
         // eprintln!("{:?}", &message_recevied[..message_size]);
 
         let peer_message = message_recevied
@@ -254,8 +254,8 @@ async fn main() -> Result<()> {
         // request a piece
         if let PeerMessage::Unchoke(_) = peer_message {
             // let message = PeerMessage::new(6, 0, 0, usize::pow(2, 14)).to_message();
-            let n_total = f64::ceil(torrent.length as f64 / (torrent.piece_length as f64)) as usize;
-            // let n_total = 2;
+            // let n_total = f64::ceil(torrent.length as f64 / (torrent.piece_length as f64)) as usize;
+            let n_total = 1;
             const BLOCK_CHUNK_SIZE: usize = usize::pow(2, 14);
             for index in 0..n_total {
                 eprintln!("=== Pieces: {} of {}", index + 1, n_total);
