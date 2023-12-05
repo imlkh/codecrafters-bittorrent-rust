@@ -320,17 +320,17 @@ async fn main() -> Result<()> {
             }
         }
 
-        if piece_received.len() == torrent.length {
-            std::fs::write(download_file_path, piece_received)
-                .context("something wrong with file saving")?;
-            eprintln!("File saved completed, path: {}", download_file_path);
-        } else {
-            eprintln!(
-                "Piece is not downaded completely, downloaded size: {}",
-                piece_received.len()
-            );
-        }
-
+        // if piece_received.len() == torrent.length {
+        std::fs::write(download_file_path, piece_received)
+            .context("something wrong with file saving")?;
+        eprintln!("File saved completed, path: {}", download_file_path);
+        // } else {
+        //     eprintln!(
+        //         "Piece is not downaded completely, downloaded size: {}",
+        //         piece_received.len()
+        //     );
+        // }
+        //
         Ok(())
     } else {
         println!("unknown command: {}", args[1]);
