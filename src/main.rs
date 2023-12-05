@@ -262,8 +262,8 @@ async fn main() -> Result<()> {
             // for index in 0..n_total {
             eprintln!("=== Pieces: {} of {}", piece_index + 1, n_total);
             let piece_length = {
-                if torrent.length - piece_received.len() < torrent.piece_length {
-                    torrent.length - piece_received.len()
+                if piece_index == n_total - 1 {
+                    torrent.length - piece_index * torrent.piece_length
                 } else {
                     torrent.piece_length
                 }
