@@ -173,14 +173,14 @@ async fn main() -> Result<()> {
 
         // handshake
         eprintln!("|||||||||||||| HandShake ||||||||||||||||||");
-        let handshake = torrent.to_handshake();
-        eprintln!(
-            "info_hash: {}, peer_id: {:?}",
-            handshake.info_hash, handshake.peer_id
-        );
+        // let handshake = torrent.to_handshake();
+        // eprintln!(
+        //     "info_hash: {}, peer_id: {:?}",
+        //     handshake.info_hash, handshake.peer_id
+        // );
         let message = torrent.to_handshake().to_message();
-        eprintln!("message.len(): {:?}", message.len());
-        eprintln!("{:?}", message);
+        // eprintln!("message.len(): {:?}", message.len());
+        // eprintln!("{:?}", message);
         // let ip_address = "178.62.82.89:51470"; // change it later
         // let ip_address = "165.232.33.77:51467"; // change it later
         let ip_address = {
@@ -199,7 +199,7 @@ async fn main() -> Result<()> {
             message_size = stream
                 .read(&mut message_recevied)
                 .context("message read failed")?;
-            eprintln!("the length of the received message is {message_size}");
+            // eprintln!("the length of the received message is {message_size}");
             // eprintln!("{:?}", message_recevied);
             sleep(Duration::from_millis(100))
         }
@@ -213,7 +213,7 @@ async fn main() -> Result<()> {
             .read(&mut message_recevied)
             .context("message read failed")?;
         eprintln!("the length of the received message is {message_size}");
-        eprintln!("{:?}", &message_recevied[..message_size]);
+        // eprintln!("{:?}", &message_recevied[..message_size]);
 
         let peer_message = message_recevied
             .to_peer_message()
@@ -235,8 +235,8 @@ async fn main() -> Result<()> {
         let message_size = stream
             .read(&mut message_recevied)
             .context("message read failed")?;
-        eprintln!("the length of the received message is {message_size}");
-        eprintln!("{:?}", &message_recevied[..message_size]);
+        // eprintln!("the length of the received message is {message_size}");
+        // eprintln!("{:?}", &message_recevied[..message_size]);
 
         let peer_message = message_recevied
             .to_peer_message()
@@ -283,12 +283,12 @@ async fn main() -> Result<()> {
                         block_size,
                     )
                     .to_message();
-                    eprintln!("{:?} message sent", message);
+                    // eprintln!("{:?} message sent", message);
                     stream.write_all(&message)?;
 
                     let mut message_recevied = vec![0u8; block_size + 13]; // initialize message buffer
-                    eprintln!("size: {}", message_recevied.len());
-                    // let mut message_recevied = Vec::new(); // initialize message buffer
+                                                                           // eprintln!("size: {}", message_recevied.len());
+                                                                           // let mut message_recevied = Vec::new(); // initialize message buffer
                     stream
                         .read_exact(&mut message_recevied)
                         .context("message read failed")?;
@@ -307,7 +307,7 @@ async fn main() -> Result<()> {
                     if let PeerMessage::Piece(message) = peer_message {
                         // println!("a piece is received");
                         // println!("{:?}", &message_recevied[..13]);
-                        eprintln!("payload.len(): {}", message.payload.len());
+                        // eprintln!("payload.len(): {}", message.payload.len());
 
                         let block = &message.payload[8..];
                         piece_received.extend_from_slice(block);
