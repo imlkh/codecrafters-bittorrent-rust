@@ -134,6 +134,8 @@ pub enum PeerMessage {
     Piece(Message),
 }
 
+#[repr(u8)]
+#[derive(PartialEq, Eq)]
 pub enum MessageType {
     Bitfield = 5,
     Interested = 2,
@@ -146,25 +148,34 @@ pub trait ToPeerMessage {
     fn to_peer_message(&self) -> anyhow::Result<PeerMessage>;
 }
 
+impl From<MessageType> for u8 {
+    fn from(m: MessageType) -> u8 {
+        m as u8
+    }
+}
+
 impl ToPeerMessage for Vec<u8> {
     fn to_peer_message(&self) -> anyhow::Result<PeerMessage> {
         if self.len() < 5 {
             panic!("length is too short");
         }
 
-        let message_length = ((self[0] as i32) << 24)
-            + ((self[1] as i32) << 16)
-            + ((self[2] as i32) << 8)
-            + self[3] as i32;
+        let mut length_bytes = [0u8; 4];
+        length_bytes.copy_from_slice(&self[..4]);
+        // let message_length = ((self[0] as i32) << 24)
+        //     + ((self[1] as i32) << 16)
+        //     + ((self[2] as i32) << 8)
+        //     + self[3] as i32;
 
+        let message_length = u32::from_be_bytes(length_bytes) as usize;
         // eprintln!("len: {}, message_lenth: {}", self.len(), message_length);
-        if self.len() - 4 < message_length as usize {
+        if self.len() - 4 < message_length {
             panic!("message is not completely parsed or wrong message");
         }
 
         let message = Message {
             length: [self[0], self[1], self[2], self[3]],
-            payload: self[5..(5 + message_length as usize - 1)].into(),
+            payload: self[5..(5 + message_length - 1)].into(),
         };
 
         let message_type = if self[4] == MessageType::Bitfield as u8 {
@@ -201,29 +212,10 @@ impl PeerMessage {
     pub fn new(message_type: MessageType, index: usize, begin: usize, length: usize) -> Self {
         let mut payload = Vec::<u8>::new();
 
-        let index: [u8; 4] = [
-            (index >> 24) as u8,
-            (index >> 16) as u8,
-            (index >> 8) as u8,
-            index as u8,
-        ];
-        let begin: [u8; 4] = [
-            (begin >> 24) as u8,
-            (begin >> 16) as u8,
-            (begin >> 8) as u8,
-            begin as u8,
-        ];
-        let length_vec: [u8; 4] = [
-            (length >> 24) as u8,
-            (length >> 16) as u8,
-            (length >> 8) as u8,
-            length as u8,
-        ];
-
         if length != 0 {
-            payload.extend(&index);
-            payload.extend(&begin);
-            payload.extend(&length_vec);
+            payload.extend((index as u32).to_be_bytes());
+            payload.extend((begin as u32).to_be_bytes());
+            payload.extend((length as u32).to_be_bytes());
         }
         let message = Message {
             length: [0, 0, 0, 1 + payload.len() as u8],
@@ -242,11 +234,11 @@ impl PeerMessage {
         let mut vec: Vec<u8> = Vec::new();
         // vec.push(19u8);
         let (message, id) = match self {
-            PeerMessage::Bitfield(message) => (message, 5u8),
-            PeerMessage::Interested(message) => (message, 2u8),
-            PeerMessage::Unchoke(message) => (message, 1u8),
-            PeerMessage::Request(message) => (message, 6u8),
-            PeerMessage::Piece(message) => (message, 7u8),
+            PeerMessage::Bitfield(message) => (message, MessageType::Bitfield.into()),
+            PeerMessage::Interested(message) => (message, MessageType::Interested.into()),
+            PeerMessage::Unchoke(message) => (message, MessageType::Unchoke.into()),
+            PeerMessage::Request(message) => (message, MessageType::Request.into()),
+            PeerMessage::Piece(message) => (message, MessageType::Piece.into()),
         };
         vec.extend(message.length);
         vec.push(id);
@@ -254,10 +246,3 @@ impl PeerMessage {
         vec
     }
 }
-
-// print!("Tracker URL: {}", &torrent.url);
-// println!();
-// println!("Length: {}", &torrent.length);
-// println!("Info Hash: {}", &torrent.info_hash);
-// println!("Piece Length: {}", &torrent.piece_length);
-// println!("Piece Hashes:\n{}", &torrent.piece_hashes);
