@@ -3,8 +3,6 @@ use std::io::{Read, Write};
 #[allow(unused_imports)]
 use std::net::{TcpStream, ToSocketAddrs};
 use std::path::PathBuf;
-use std::thread::sleep;
-use std::time::Duration;
 
 // external crates
 use anyhow::{Context, Result};
