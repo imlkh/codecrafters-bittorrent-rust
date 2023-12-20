@@ -74,7 +74,7 @@ impl InfoHash {
             .collect::<String>()
     }
     pub fn to_hex(&self) -> Vec<u8> {
-        hex::decode(&(self.val)).expect("Decoding failed")
+        hex::decode(&(self.val)).expect("to be hexadecimal")
     }
 }
 
@@ -89,28 +89,23 @@ pub struct Torrent {
 
 impl Torrent {
     pub fn new(decoded_value: &Value) -> anyhow::Result<Torrent> {
-        let map = decoded_value.as_object().context("this is not an object")?;
+        let map = decoded_value.as_object().context("read map object")?;
 
         Ok(Torrent {
-            url: map["announce"]
-                .as_str()
-                .context("this is not a string")?
-                .to_string(),
-            length: map["info"]["length"]
-                .as_i64()
-                .context("this is not an integer")? as usize,
+            url: map["announce"].as_str().context("read url")?.to_string(),
+            length: map["info"]["length"].as_i64().context("read length")? as usize,
             info_hash: InfoHash {
                 val: map["info hash"]
                     .as_str()
-                    .context("this is not a string")?
+                    .context("read info hash")?
                     .to_string(),
             },
             piece_length: map["info"]["piece length"]
                 .as_i64()
-                .context("this is not an integer")? as usize,
+                .context("read piece length")? as usize,
             piece_hashes: map["info"]["pieces"]
                 .as_str()
-                .context("this is not a string")?
+                .context("read peiece hashes")?
                 .to_string(),
             peer_id: b"00112233445566778899".to_vec(),
         })
