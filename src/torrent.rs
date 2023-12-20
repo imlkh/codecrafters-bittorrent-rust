@@ -1,6 +1,11 @@
+use crate::bencode::Bencode;
 use anyhow::Context;
 use serde_json::Value;
 use std::fmt;
+use std::io::{Read, Write};
+use std::net::TcpStream;
+use std::thread::sleep;
+use std::time::Duration;
 
 pub struct HandShake {
     // length: u8,
@@ -109,6 +114,352 @@ impl Torrent {
                 .to_string(),
             peer_id: b"00112233445566778899".to_vec(),
         })
+    }
+    pub fn download(&self, piece_index: usize) -> anyhow::Result<Vec<u8>> {
+        eprintln!(
+            "total length: {}, piece length: {}",
+            self.length, self.piece_length
+        );
+        eprintln!("info_hash: {}, peer_id: {:?}", self.info_hash, self.peer_id);
+        eprintln!("|||||||||||||| Query Peer |||||||||||||||||");
+        let left = self.piece_length.to_string();
+        let query_params = vec![
+            ("uploaded", "0"),
+            ("downloaded", "0"),
+            ("compact", "1"),
+            ("left", &left),
+            ("peer_id", "00112233445566778899"),
+            ("port", "6881"),
+        ];
+
+        let url_with_query = format!(
+            "{}?{}&info_hash={}",
+            self.url,
+            serde_urlencoded::to_string(query_params)?,
+            self.info_hash.to_url()
+        );
+
+        let resp = reqwest::blocking::get(url_with_query)?;
+
+        let body = resp.bytes()?;
+        let decoded = body.to_vec().bdecode();
+
+        let mut ip_addresses: Vec<String> = Vec::new();
+        if let Value::Array(vec) = &decoded["peers"] {
+            vec.iter().for_each(|map| {
+                ip_addresses.push(format!("{}:{}", map["ip"].as_str().unwrap(), map["port"]))
+            });
+        }
+
+        // handshake
+        eprintln!("|||||||||||||| HandShake ||||||||||||||||||");
+        let message = self.to_handshake().to_message();
+        let ip_address = {
+            if ip_addresses.len() > 1 {
+                &ip_addresses[1]
+            } else {
+                &ip_addresses[0]
+            }
+        };
+        eprintln!("ip address: {}", ip_address);
+        let mut message_recevied = vec![0u8; message.len()]; // initialize message buffer
+        let mut stream = TcpStream::connect(ip_address)?;
+        stream.write_all(&message)?;
+        let mut message_size = 0;
+        while message_size == 0 {
+            message_size = stream
+                .read(&mut message_recevied)
+                .context("message read failed")?;
+            sleep(Duration::from_millis(100))
+        }
+        eprintln!(
+            "Peer ID: {}",
+            message_recevied.to_owned().to_handshake().peer_id_as_str()
+        );
+
+        eprintln!("|||||||||||||| Wait Messages ||||||||||||||");
+        let message_size = stream
+            .read(&mut message_recevied)
+            .context("message read failed")?;
+        eprintln!("the length of the received message is {message_size}");
+        // eprintln!("{:?}", &message_recevied[..message_size]);
+
+        let peer_message = message_recevied
+            .to_peer_message()
+            .context("This is not a peer message")?;
+        match &peer_message {
+            PeerMessage::Bitfield(_) => eprintln!("[Bitfield]"),
+            PeerMessage::Interested(_) => eprintln!("[Interested]"),
+            PeerMessage::Unchoke(_) => eprintln!("[Unchoke]"),
+            PeerMessage::Request(_) => eprintln!("[Request]"),
+            PeerMessage::Piece(_) => eprintln!("[Piece]"),
+        }
+        // println!("Peer message type: {:?}", peer_message);
+
+        if let PeerMessage::Bitfield(_) = peer_message {
+            let message = PeerMessage::new(MessageType::Interested, 0, 0, 0).to_message();
+            stream.write_all(&message)?;
+        }
+
+        let message_size = stream
+            .read(&mut message_recevied)
+            .context("message read failed")?;
+        eprintln!("the length of the received message is {message_size}");
+        // eprintln!("{:?}", &message_recevied[..message_size]);
+
+        let peer_message = message_recevied
+            .to_peer_message()
+            .context("This is not a peer message")?;
+        match &peer_message {
+            PeerMessage::Bitfield(_) => eprintln!("[Bitfield]"),
+            PeerMessage::Interested(_) => eprintln!("[Interested]"),
+            PeerMessage::Unchoke(_) => eprintln!("[Unchoke]"),
+            PeerMessage::Request(_) => eprintln!("[Request]"),
+            PeerMessage::Piece(_) => eprintln!("[Piece]"),
+        }
+
+        eprintln!("|||||||||||||| Request Data |||||||||||||||");
+        let mut piece_received = Vec::<u8>::new();
+        // request a piece
+        if let PeerMessage::Unchoke(_) = peer_message {
+            // let message = PeerMessage::new(6, 0, 0, usize::pow(2, 14)).to_message();
+            let n_total = f64::ceil(self.length as f64 / (self.piece_length as f64)) as usize;
+            // let n_total = 1;
+            const BLOCK_CHUNK_SIZE: usize = usize::pow(2, 14);
+            // for index in 0..n_total {
+            eprintln!("=== Pieces: {} of {}", piece_index + 1, n_total);
+            let piece_length = {
+                if piece_index == n_total - 1 {
+                    self.length - piece_index * self.piece_length
+                } else {
+                    self.piece_length
+                }
+            };
+            let n_blocks = f64::ceil(piece_length as f64 / BLOCK_CHUNK_SIZE as f64) as usize;
+            for block_index in 0..n_blocks {
+                eprintln!("------ Blocks: {} of {}", block_index + 1, n_blocks);
+                let block_size = {
+                    if block_index == n_blocks - 1 {
+                        piece_length - BLOCK_CHUNK_SIZE * block_index
+                    } else {
+                        BLOCK_CHUNK_SIZE
+                    }
+                };
+                let message = PeerMessage::new(
+                    MessageType::Request,
+                    piece_index,
+                    block_index * BLOCK_CHUNK_SIZE,
+                    block_size,
+                )
+                .to_message();
+                // eprintln!("{:?} message sent", message);
+                stream.write_all(&message)?;
+
+                let mut message_recevied = vec![0u8; block_size + 13]; // initialize message buffer
+                                                                       // eprintln!("size: {}", message_recevied.len());
+                                                                       // let mut message_recevied = Vec::new(); // initialize message buffer
+                stream
+                    .read_exact(&mut message_recevied)
+                    .context("message read failed")?;
+                // eprintln!("the length of the received message is {message_size}");
+                // println!("{:?}", &message_recevied[..message_size]);
+                let peer_message = message_recevied
+                    .to_peer_message()
+                    .context("This is not a peer message")?;
+                match &peer_message {
+                    PeerMessage::Bitfield(_) => println!("[Bitfield]"),
+                    PeerMessage::Interested(_) => println!("[Interested]"),
+                    PeerMessage::Unchoke(_) => println!("[Unchoke]"),
+                    PeerMessage::Request(_) => println!("[Request]"),
+                    PeerMessage::Piece(_) => println!("[Piece]"),
+                }
+                if let PeerMessage::Piece(message) = peer_message {
+                    let block = &message.payload[8..];
+                    piece_received.extend_from_slice(block);
+                    eprintln!(
+                        "the current size of recieved pieces: {}",
+                        piece_received.len()
+                    );
+                }
+            }
+        }
+        Ok(piece_received)
+    }
+    pub fn download_all(&self) -> anyhow::Result<Vec<u8>> {
+        eprintln!(
+            "total length: {}, piece length: {}",
+            self.length, self.piece_length
+        );
+        eprintln!("info_hash: {}, peer_id: {:?}", self.info_hash, self.peer_id);
+        // query peer
+        eprintln!("|||||||||||||| Query Peer |||||||||||||||||");
+        let left = self.piece_length.to_string();
+        let query_params = vec![
+            ("uploaded", "0"),
+            ("downloaded", "0"),
+            ("compact", "1"),
+            ("left", &left),
+            ("peer_id", "00112233445566778899"),
+            ("port", "6881"),
+        ];
+
+        let url_with_query = format!(
+            "{}?{}&info_hash={}",
+            self.url,
+            serde_urlencoded::to_string(query_params)?,
+            self.info_hash.to_url()
+        );
+        // println!("{}", url_with_query);
+
+        let resp = reqwest::blocking::get(url_with_query)?;
+
+        let body = resp.bytes()?;
+        let decoded = body.to_vec().bdecode();
+        // println!("Body:\n{}", decoded.to_string());
+
+        let mut ip_addresses: Vec<String> = Vec::new();
+        if let Value::Array(vec) = &decoded["peers"] {
+            vec.iter().for_each(|map| {
+                ip_addresses.push(format!("{}:{}", map["ip"].as_str().unwrap(), map["port"]))
+            });
+        }
+
+        // handshake
+        eprintln!("|||||||||||||| HandShake ||||||||||||||||||");
+        // let handshake = torrent.to_handshake();
+        // eprintln!(
+        //     "info_hash: {}, peer_id: {:?}",
+        //     handshake.info_hash, handshake.peer_id
+        // );
+        let message = self.to_handshake().to_message();
+        // eprintln!("message.len(): {:?}", message.len());
+        // eprintln!("{:?}", message);
+        // let ip_address = "178.62.82.89:51470"; // change it later
+        // let ip_address = "165.232.33.77:51467"; // change it later
+        let ip_address = {
+            if ip_addresses.len() > 1 {
+                &ip_addresses[1]
+            } else {
+                &ip_addresses[0]
+            }
+        };
+        eprintln!("ip address: {}", ip_address);
+        let mut message_recevied = vec![0u8; message.len()]; // initialize message buffer
+        let mut stream = TcpStream::connect(ip_address)?;
+        stream.write_all(&message)?;
+        let mut message_size = 0;
+        while message_size == 0 {
+            message_size = stream
+                .read(&mut message_recevied)
+                .context("message read failed")?;
+            // eprintln!("the length of the received message is {message_size}");
+            // eprintln!("{:?}", message_recevied);
+            sleep(Duration::from_millis(100))
+        }
+        eprintln!(
+            "Peer ID: {}",
+            message_recevied.to_owned().to_handshake().peer_id_as_str()
+        );
+
+        eprintln!("|||||||||||||| Wait Messages ||||||||||||||");
+        let message_size = stream
+            .read(&mut message_recevied)
+            .context("message read failed")?;
+        eprintln!("the length of the received message is {message_size}");
+        // eprintln!("{:?}", &message_recevied[..message_size]);
+
+        let peer_message = message_recevied
+            .to_peer_message()
+            .context("This is not a peer message")?;
+        match &peer_message {
+            PeerMessage::Bitfield(_) => eprintln!("[Bitfield]"),
+            PeerMessage::Interested(_) => eprintln!("[Interested]"),
+            PeerMessage::Unchoke(_) => eprintln!("[Unchoke]"),
+            PeerMessage::Request(_) => eprintln!("[Request]"),
+            PeerMessage::Piece(_) => eprintln!("[Piece]"),
+        }
+        // println!("Peer message type: {:?}", peer_message);
+
+        if let PeerMessage::Bitfield(_) = peer_message {
+            let message = PeerMessage::new(MessageType::Interested, 0, 0, 0).to_message();
+            stream.write_all(&message)?;
+        }
+
+        let message_size = stream
+            .read(&mut message_recevied)
+            .context("message read failed")?;
+        eprintln!("the length of the received message is {message_size}");
+        // eprintln!("{:?}", &message_recevied[..message_size]);
+
+        let peer_message = message_recevied
+            .to_peer_message()
+            .context("This is not a peer message")?;
+        match &peer_message {
+            PeerMessage::Bitfield(_) => eprintln!("[Bitfield]"),
+            PeerMessage::Interested(_) => eprintln!("[Interested]"),
+            PeerMessage::Unchoke(_) => eprintln!("[Unchoke]"),
+            PeerMessage::Request(_) => eprintln!("[Request]"),
+            PeerMessage::Piece(_) => eprintln!("[Piece]"),
+        }
+
+        eprintln!("|||||||||||||| Request Data |||||||||||||||");
+        let mut piece_received = Vec::<u8>::new();
+        // request a piece
+        if let PeerMessage::Unchoke(_) = peer_message {
+            // let message = PeerMessage::new(6, 0, 0, usize::pow(2, 14)).to_message();
+            let n_total = f64::ceil(self.length as f64 / (self.piece_length as f64)) as usize;
+            // let n_total = 1;
+            const BLOCK_CHUNK_SIZE: usize = usize::pow(2, 14);
+            for piece_index in 0..n_total {
+                eprintln!("=== Pieces: {} of {}", piece_index + 1, n_total);
+                let piece_length = {
+                    if piece_index == n_total - 1 {
+                        self.length - piece_index * self.piece_length
+                    } else {
+                        self.piece_length
+                    }
+                };
+                let n_blocks = f64::ceil(piece_length as f64 / BLOCK_CHUNK_SIZE as f64) as usize;
+                for block_index in 0..n_blocks {
+                    let block_size = {
+                        if block_index == n_blocks - 1 {
+                            piece_length - BLOCK_CHUNK_SIZE * block_index
+                        } else {
+                            BLOCK_CHUNK_SIZE
+                        }
+                    };
+                    let message = PeerMessage::new(
+                        MessageType::Request,
+                        piece_index,
+                        block_index * BLOCK_CHUNK_SIZE,
+                        block_size,
+                    )
+                    .to_message();
+                    // eprintln!("{:?} message sent", message);
+                    stream.write_all(&message)?;
+
+                    let mut message_recevied = vec![0u8; block_size + 13]; // initialize message buffer
+                                                                           // let mut message_recevied = Vec::new(); // initialize message buffer
+                    stream
+                        .read_exact(&mut message_recevied)
+                        .context("message read failed")?;
+                    let peer_message = message_recevied
+                        .to_peer_message()
+                        .context("This is not a peer message")?;
+                    if let PeerMessage::Piece(message) = peer_message {
+                        let block = &message.payload[8..];
+                        piece_received.extend_from_slice(block);
+                        eprintln!(
+                            "Blocks: {} of {}, downloaded size: {}",
+                            block_index + 1,
+                            n_blocks,
+                            piece_received.len()
+                        );
+                    }
+                }
+            }
+        }
+        Ok(piece_received)
     }
 }
 
