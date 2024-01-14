@@ -4,6 +4,8 @@
 //!
 
 // use anyhow::Result;
+use std::fmt::Write as _;
+use std::io::Write as _;
 
 use serde_json::{Map, Value};
 use sha1::{Digest, Sha1};
@@ -189,9 +191,13 @@ impl Bencode for [u8] {
         } else {
             // hexadecimal representation
             let pieces = &self[colon_index + 1..colon_index + 1 + number as usize];
-            let string: String = pieces.iter().map(|b| format!("{:02x}", b)).collect();
+            // let string: String = pieces.iter().map(|b| format!("{:02x}", b)).collect();
+            let string = pieces.iter().fold(String::new(), |mut string, b| {
+                write!(&mut string, "{:02x}", b).unwrap();
+                string
+            });
             (
-                Value::String(string.to_string()),
+                Value::String(string),
                 &self[colon_index + 1 + number as usize..],
             )
         }

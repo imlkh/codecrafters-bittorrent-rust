@@ -2,6 +2,7 @@ use crate::bencode::Bencode;
 use anyhow::Context;
 use serde_json::Value;
 use std::fmt;
+use std::fmt::Write as FmtWrite;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::thread::sleep;
@@ -25,10 +26,10 @@ impl HandShake {
         vec
     }
     pub fn peer_id_as_str(&self) -> String {
-        self.peer_id
-            .iter()
-            .map(|b| format!("{:02x}", b))
-            .collect::<String>()
+        self.peer_id.iter().fold(String::new(), |mut output, b| {
+            let _ = write!(output, "{b:02x}");
+            output
+        })
     }
 }
 
